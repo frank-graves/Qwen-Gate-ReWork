@@ -3,7 +3,7 @@ import { existsSync, unlinkSync, writeFileSync } from 'fs';
 import { Hono } from 'hono';
 import { bearerAuth } from 'hono/bearer-auth';
 import { cors } from 'hono/cors';
-
+import { APP_VERSION } from './utils/version.ts';
 import { rateLimitMiddleware, startAutoCleanup, stopAutoCleanup } from './middleware/rateLimit.ts';
 import { accountsRouter } from './routes/accounts.ts';
 import { anthropicMessages } from './routes/anthropic.ts';
@@ -20,6 +20,8 @@ import { getUsage, getUsageSummary, loadUsageStore } from './services/usageTrack
 import { safeCompare } from './utils/auth.ts';
 import { isBun } from './utils/env.ts';
 import { projectPath } from './utils/paths.ts';
+import { getAuthPhase, setAuthPhase } from './services/healthState.ts';
+import { getWorkerStatus } from './services/wreqFetch.ts';
 
 process.title = 'qwen-gate';
 
@@ -105,19 +107,38 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// Health check — reports actual system status
+// ── REPLACE existing /health handler (lines ~109-125) with: ──
+// Health check — component-level status for load balancers and operators.
+// Always returns HTTP 200; the body's `status` field carries the real verdict.
+// This avoids the old pattern where a 503 on /health cascades into
+// load-balancer flapping during routine auth initialization.
 app.get('/health', (c) => {
+  const accountSnapshot = getAccountStats();
   const totalAccounts = getAccountCount();
   const availableAccounts = getAvailableCount();
-  const stats = getAccountStats();
-  const authenticatedCount = stats.filter((s) => s.authenticated).length;
-  const throttledCount = stats.filter((s) => s.throttled).length;
-  const isHealthy = totalAccounts > 0 && authenticatedCount > 0;
+  const authenticatedCount = accountSnapshot.filter((s) => s.authenticated).length;
+  const throttledCount = accountSnapshot.filter((s) => s.throttled).length;
+  const currentAuthPhase = getAuthPhase();
+  const currentWorkerPhase = getWorkerStatus();
+
+  let overallStatus: 'starting' | 'degraded' | 'ok';
+  if (currentAuthPhase === 'idle' || currentAuthPhase === 'initializing') {
+    overallStatus = 'starting';
+  } else if (currentAuthPhase === 'failed') {
+    overallStatus = 'degraded';
+  } else if (currentAuthPhase === 'ready' && availableAccounts === 0) {
+    overallStatus = 'degraded';
+  } else {
+    overallStatus = 'ok';
+  }
+
   return c.json({
-    status: isHealthy ? 'ok' : 'degraded',
-    version: '0.7.0',
-    uptime: process.uptime(),
+    status: overallStatus,
+    version: APP_VERSION,
+    uptime_seconds: Math.floor(process.uptime()),
     inFlight: inFlightRequests,
+    auth_phase: currentAuthPhase,
+    worker_phase: currentWorkerPhase,
     accounts: {
       total: totalAccounts,
       authenticated: authenticatedCount,
@@ -442,13 +463,16 @@ if (import.meta.main) {
     // ── Phase 2: Auth + post-boot tasks ──
     (async () => {
       logStore.log('info', 'boot', '[1/5] Authenticating accounts...');
+      setAuthPhase('initializing');
       try {
         await initAuth();
+        setAuthPhase('ready');
         logStore.log('info', 'boot', '[1/5] Accounts authenticated');
         for (const acct of getAccounts()) {
           setStartupStatus(acct.email, 'pending');
         }
       } catch (err: any) {
+        setAuthPhase('failed');
         logStore.log('warn', 'boot', `[1/5] initAuth failed: ${err.message}`);
       }
 

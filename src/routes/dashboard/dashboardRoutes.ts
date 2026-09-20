@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'fs';
 import { Hono } from 'hono';
 import { bearerAuth } from 'hono/bearer-auth';
 import { resolve } from 'path';
-import { getAccountCount, getAccountStats, getAllAccountEmails, getAvailableCount, initAuth } from '../../services/auth.ts';
+import { getAccountStats, getAllAccountEmails, initAuth } from '../../services/auth.ts';
 import { config, isValidKey } from '../../services/configService.ts';
 import { logStore } from '../../services/logStore.ts';
 import { monitorStore } from '../../services/monitorStore.ts';
@@ -47,19 +47,6 @@ function dashboardStaticHandler(c: any) {
   const ext = file.split('.').pop() || '';
   const contentType = mime[ext] || 'application/octet-stream';
   return c.text(readFileSync(filePath, 'utf-8'), 200, { 'Content-Type': contentType });
-}
-
-function healthHandler(c: any) {
-  const poolOk = getAvailableCount() > 0;
-  return c.json(
-    {
-      status: poolOk ? 'ok' : 'degraded',
-      pool: poolOk,
-      accounts: { total: getAccountCount(), available: getAvailableCount() },
-      uptime: process.uptime(),
-    },
-    200,
-  );
 }
 
 async function accountsReloadHandler(c: any) {
@@ -304,8 +291,7 @@ export function registerDashboardRoutes(app: Hono): void {
   app.get('/dashboard/static/:file', dashboardStaticHandler);
 
   app.get('/', (c) => c.redirect('/dashboard'));
-  app.get('/health', healthHandler);
-  app.get(
+    app.get(
     '/accounts',
     async (c, next) => requireApiKey(c, next),
     (c) => {

@@ -1,4 +1,5 @@
-/**
+// src/services/wreqFetch.ts — FULL FILE
+/*
  * wreqFetch — Bun-side client for the Node.js wreq-js sidecar worker.
  *
  * Parallel to impersFetch.ts. Uses wreq-js (Rust + BoringSSL) instead of
@@ -7,15 +8,19 @@
  * library-level WAF detection.
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logCrash, logEvent, logSessionCreate } from '../utils/wreqCrashLogger.ts';
 
-let workerProcess: any = null;
+let workerProcess: ChildProcess | null = null;
 let workerBaseUrl: string | null = null;
 let workerStartPromise: Promise<string> | null = null;
 let workerPort: number | null = null;
+// Tracks whether the most recent startWorker() attempt rejected.
+// The health endpoint reads this via getWorkerStatus() to distinguish
+// "never tried" from "tried and failed" without re-spawning the worker.
+let lastStartFailed = false;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = resolve(__dirname, '../worker/wreq-worker.mjs');
@@ -33,6 +38,9 @@ function getPort(): number {
 }
 
 async function startWorker(): Promise<string> {
+  // Reset failure flag — this is a fresh attempt, so any prior failure
+  // no longer reflects current state.
+  lastStartFailed = false;
   return new Promise((resolvePromise, reject) => {
     const port = getPort();
     const proc = spawn('node', [WORKER_PATH], {
@@ -46,6 +54,7 @@ async function startWorker(): Promise<string> {
         proc.kill();
         workerProcess = null;
         workerStartPromise = null;
+        lastStartFailed = true;
         reject(new Error('wreq worker startup timeout after 15s'));
       }
     }, 15_000);
@@ -55,6 +64,7 @@ async function startWorker(): Promise<string> {
         const info = JSON.parse(data.toString().trim().split('\n')[0]);
         workerBaseUrl = `http://127.0.0.1:${info.port}`;
         clearTimeout(timeout);
+        lastStartFailed = false;
         logEvent('wreqWorker', 'started', { port: info.port });
         resolvePromise(workerBaseUrl);
       } catch {
@@ -70,6 +80,7 @@ async function startWorker(): Promise<string> {
       clearTimeout(timeout);
       workerProcess = null;
       workerStartPromise = null;
+      lastStartFailed = true;
       logCrash('wreqWorker.start', err);
       reject(err);
     });
@@ -92,6 +103,17 @@ function restartWorker(): void {
   workerProcess = null;
   workerBaseUrl = null;
   workerStartPromise = null;
+}
+
+export type WorkerPhase = 'idle' | 'initializing' | 'ready' | 'failed';
+
+export function getWorkerStatus(): WorkerPhase {
+  // Priority order matters: ready beats everything, then initializing,
+  // then failed (only if we actually tried), then idle as default.
+  if (workerBaseUrl) return 'ready';
+  if (workerStartPromise || workerProcess) return 'initializing';
+  if (lastStartFailed) return 'failed';
+  return 'idle';
 }
 
 export interface WreqFetchOptions {
@@ -170,7 +192,12 @@ export async function wreqFetch(url: string, options: WreqFetchOptions = {}): Pr
   const reconstructed = new Response(response.body, responseInit);
 
   if (stream) {
-    (reconstructed as any)._wreqClose = () => {};
+    // The worker returns a native fetch Response. We attach a no-op close
+    // handler so downstream code that expects a wreq session can call it
+    // without a null check. The worker handles its own lifecycle, so this
+    // is a contract placeholder, not a real cleanup.
+    type ResponseWithClose = Response & { _wreqClose?: () => void };
+    (reconstructed as ResponseWithClose)._wreqClose = () => {};
   }
 
   return reconstructed;
