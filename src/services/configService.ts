@@ -30,6 +30,7 @@ export interface ConfigSchema {
   MODELS_CACHE_TTL_MS: string;
   DARK_MODE: string;
   CLAUDE_CODE_PROXY: string;
+  MAX_RATE_LIMIT_BUCKETS: string;
 }
 
 export const DEFAULT_CONFIG: ConfigSchema = {
@@ -59,6 +60,7 @@ export const DEFAULT_CONFIG: ConfigSchema = {
   MODELS_CACHE_TTL_MS: '3600000',
   DARK_MODE: 'false',
   CLAUDE_CODE_PROXY: 'false',
+  MAX_RATE_LIMIT_BUCKETS: '10000',
 };
 
 const CONFIG_KEYS = new Set<string>(Object.keys(DEFAULT_CONFIG));

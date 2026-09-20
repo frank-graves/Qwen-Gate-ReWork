@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+import { config } from '../services/configService.ts';
 
 export interface RateLimitConfig {
   requests_per_minute: number;
@@ -8,10 +9,14 @@ export interface RateLimitConfig {
 
 interface BucketState {
   tokens: number;
-  lastRefill: number; // timestamp in ms
+  lastRefill: number;
 }
 
 const buckets = new Map<string, BucketState>();
+
+// The cap is a safety valve: cleanupIdleBuckets only runs every
+// 15 minutes, so a burst of spoofed IPs can blow past it.
+let maxBuckets = Math.max(1, config.getInt('MAX_RATE_LIMIT_BUCKETS', 10000));
 
 const DEFAULT_CONFIG: RateLimitConfig = {
   requests_per_minute: 60,
@@ -39,6 +44,13 @@ export class TokenBucket {
       lastRefill: Date.now(),
     };
     buckets.set(this.key, initial);
+
+    // Enforce cap after insertion — only runs when we exceed the limit,
+    // keeping the fast path (size <= maxBuckets) untouched.
+    if (buckets.size > maxBuckets) {
+      evictOldestBuckets(maxBuckets);
+    }
+
     return initial;
   }
 
@@ -47,18 +59,15 @@ export class TokenBucket {
     const elapsedMs = now - bucket.lastRefill;
     const elapsedMinutes = elapsedMs / 60000;
 
-    // Add tokens based on elapsed time
     const tokensToAdd = elapsedMinutes * this.config.requests_per_minute;
     bucket.tokens = Math.min(this.maxTokens, bucket.tokens + tokensToAdd);
     bucket.lastRefill = now;
   }
 
   private calculateRetryAfter(bucket: BucketState): number {
-    // Calculate seconds until enough tokens are available for one request
     const tokensNeeded = this.config.tokens_per_request - bucket.tokens;
     if (tokensNeeded <= 0) return 0;
 
-    // Time to accumulate needed tokens: tokens / (requests_per_minute / 60) = seconds
     const tokensPerSecond = this.config.requests_per_minute / 60;
     return Math.max(0.1, tokensNeeded / tokensPerSecond);
   }
@@ -87,11 +96,23 @@ export class TokenBucket {
   }
 }
 
-// Singleton cache: reuse existing TokenBucket instances per key
 const bucketInstances = new Map<string, TokenBucket>();
 
+function evictOldestBuckets(maxSize: number): void {
+  // Sort by lastRefill ascending, then delete the oldest entries.
+  // This is O(n log n) but only runs when we exceed the cap, which is rare.
+  const entries = Array.from(buckets.entries());
+  entries.sort((a, b) => a[1].lastRefill - b[1].lastRefill);
+
+  const toEvict = buckets.size - maxSize;
+  for (let i = 0; i < toEvict; i++) {
+    const [key] = entries[i];
+    buckets.delete(key);
+    bucketInstances.delete(key);
+  }
+}
+
 export async function rateLimitMiddleware(c: Context, key: string, config?: Partial<RateLimitConfig>): Promise<Response | null> {
-  // Derive per-client key from IP address to prevent one user starving others
   const forwarded = c.req.header('x-forwarded-for');
   const clientIp = forwarded?.split(',')[0]?.trim() || c.req.header('x-real-ip') || 'unknown';
   const clientKey = `${key}:${clientIp}`;
@@ -107,7 +128,6 @@ export async function rateLimitMiddleware(c: Context, key: string, config?: Part
     return c.json({ error: 'Rate limit exceeded', message: 'Too many requests' }, { status: 429, headers });
   }
 
-  // Attach rate limit headers to response for successful requests
   const headers = bucket.getHeaders();
   c.header('X-RateLimit-Limit', headers['X-RateLimit-Limit']);
   c.header('X-RateLimit-Remaining', headers['X-RateLimit-Remaining']);
@@ -116,7 +136,6 @@ export async function rateLimitMiddleware(c: Context, key: string, config?: Part
   return null;
 }
 
-// Cleanup old buckets periodically (prevents memory growth from stale entries)
 export function cleanupIdleBuckets(maxIdleMinutes: number = 60): void {
   const now = Date.now();
   const maxIdleMs = maxIdleMinutes * 60 * 1000;
@@ -129,7 +148,6 @@ export function cleanupIdleBuckets(maxIdleMinutes: number = 60): void {
   }
 }
 
-// Auto-cleanup: prune idle buckets every 15 minutes to prevent unbounded Map growth.
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -139,7 +157,7 @@ export function startAutoCleanup(): void {
     cleanupIdleBuckets(60);
   }, CLEANUP_INTERVAL_MS);
   if (cleanupTimer && typeof cleanupTimer.unref === 'function') {
-    cleanupTimer.unref(); // Don't prevent process exit
+    cleanupTimer.unref();
   }
 }
 
@@ -147,5 +165,25 @@ export function stopAutoCleanup(): void {
   if (cleanupTimer) {
     clearInterval(cleanupTimer);
     cleanupTimer = null;
+  }
+}
+
+/** @internal — exposed for testing only */
+export function _getBucketKeysForTest(): string[] {
+  return Array.from(buckets.keys());
+}
+
+/** @internal — exposed for testing only. Clears all state and re-reads config. */
+export function _resetRateLimitForTest(): void {
+  buckets.clear();
+  bucketInstances.clear();
+  maxBuckets = Math.max(1, config.getInt('MAX_RATE_LIMIT_BUCKETS', 10000));
+}
+
+/** @internal — exposed for testing only */
+export function _setLastRefillForTest(key: string, timestamp: number): void {
+  const bucket = buckets.get(key);
+  if (bucket) {
+    bucket.lastRefill = timestamp;
   }
 }
