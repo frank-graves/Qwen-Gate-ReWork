@@ -89,9 +89,7 @@ async function deleteAllChatsHandler(c: any) {
           const message = err instanceof Error ? err.message : String(err);
           errors.push(`${maskEmail(email)}: ${message}`);
           controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: 'progress', email: maskEmail(email), status: 'error', error: message })}\n\n`,
-            ),
+            encoder.encode(`data: ${JSON.stringify({ type: 'progress', email: maskEmail(email), status: 'error', error: message })}\n\n`),
           );
         }
       }
