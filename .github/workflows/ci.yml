@@ -1,7 +1,11 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
 jobs:
-  test:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -9,6 +13,7 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bunx biome check src/
       - run: bunx tsc --noEmit
+      - run: bunx oxlint --format agent src/
+      - run: bunx biome check src/
       - run: bun test
