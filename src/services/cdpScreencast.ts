@@ -290,8 +290,9 @@ async function connectCDP(session: ScreencastSession, wsUrl: string): Promise<vo
           const fillResult = await send('Runtime.evaluate', { expression: fillScript, awaitPromise: true, returnByValue: true });
           const fillInfo = fillResult?.result?.value;
           logStore.log('info', 'screencast', `Autofill for ${session.email}: ${fillInfo}`);
-        } catch (err: any) {
-          logStore.log('warn', 'screencast', `Autofill failed for ${session.email}: ${err.message}`);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          logStore.log('warn', 'screencast', `Autofill failed for ${session.email}: ${message}`);
         }
 
         // Start polling for login completion
@@ -299,8 +300,9 @@ async function connectCDP(session: ScreencastSession, wsUrl: string): Promise<vo
 
         logStore.log('info', 'screencast', `Screencast started for ${session.email}`);
         resolve();
-      } catch (err: any) {
-        logStore.log('error', 'screencast', `CDP setup failed: ${err.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        logStore.log('error', 'screencast', `CDP setup failed: ${message}`);
         reject(err);
       }
     });

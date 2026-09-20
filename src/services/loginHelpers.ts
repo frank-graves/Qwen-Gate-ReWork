@@ -27,8 +27,9 @@ export async function loginFreshViaBrowser(email: string, hashedPassword: string
       if (!currentUrl.startsWith(QWEN_CHAT_URL)) {
         await page.goto(QWEN_CHAT_URL, { waitUntil: 'domcontentloaded' });
       }
-    } catch (err: any) {
-      logStore.log('warn', 'auth', `Navigation check failed for ${email}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logStore.log('warn', 'auth', `Navigation check failed for ${email}: ${message}`);
     }
 
     try {
@@ -41,8 +42,9 @@ export async function loginFreshViaBrowser(email: string, hashedPassword: string
           await context.clearCookies({ name: c.name, domain: c.domain, path: c.path });
         }
       }
-    } catch (err: any) {
-      logStore.log('warn', 'auth', `Cookie clearing failed for ${email}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logStore.log('warn', 'auth', `Cookie clearing failed for ${email}: ${message}`);
     }
 
     let evalResult: { ok: boolean; status: number; token: string | null; refreshToken: string | null; dataKeys: string[] };
@@ -90,8 +92,9 @@ export async function loginFreshViaBrowser(email: string, hashedPassword: string
         },
         { email, hashedPassword },
       );
-    } catch (err: any) {
-      logStore.log('error', 'auth', `Browser evaluate failed for ${email}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logStore.log('error', 'auth', `Browser evaluate failed for ${email}: ${message}`);
       return null;
     }
 
@@ -114,8 +117,9 @@ export async function loginFreshViaBrowser(email: string, hashedPassword: string
       );
       cookieToken = tokenCookie?.value || null;
       cookieRefresh = refreshCookie?.value || null;
-    } catch (err: any) {
-      logStore.log('warn', 'auth', `Cookie read failed for ${email}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logStore.log('warn', 'auth', `Cookie read failed for ${email}: ${message}`);
     }
 
     const finalToken = evalResult.token || cookieToken;
@@ -211,8 +215,9 @@ export async function loginFreshViaFetch(email: string, hashedPassword: string):
       const errText = await response.text();
       logStore.log('error', 'auth', `Login failed for ${email} (${response.status}): ${errText.substring(0, 200)}`);
     }
-  } catch (err: any) {
-    logStore.log('error', 'auth', `Login error for ${email}: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logStore.log('error', 'auth', `Login error for ${email}: ${message}`);
   }
 
   return null;
@@ -323,8 +328,9 @@ export async function loginViaTempContext(
     const cookies = await context.cookies();
     logStore.log('warn', 'auth', `Temp context login failed for ${email}. Cookies: ${cookies.map((c) => c.name).join(', ')}`);
     return null;
-  } catch (err: any) {
-    logStore.log('error', 'auth', `Temp context login error for ${email}: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logStore.log('error', 'auth', `Temp context login error for ${email}: ${message}`);
     return null;
   } finally {
     // Close the temp context to prevent BrowserContext leak. Each loginViaTempContext

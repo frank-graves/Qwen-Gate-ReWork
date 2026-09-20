@@ -84,8 +84,9 @@ export async function getCookies(email?: string): Promise<string> {
         .trim();
       return stripped;
     }
-  } catch (importErr: any) {
-    logStore.log('debug', 'playwright', `getCookies fallback import error: ${importErr.message}`);
+  } catch (importErr: unknown) {
+    const message = importErr instanceof Error ? importErr.message : String(importErr);
+    logStore.log('debug', 'playwright', `getCookies fallback import error: ${message}`);
   }
   return '';
 }
@@ -249,8 +250,9 @@ async function createContextInternal(email: string, cookies?: Record<string, str
         }
       });
     }
-  } catch (mergeErr: any) {
-    logStore.log('debug', 'playwright', `profileCookies merge error: ${mergeErr.message}`);
+  } catch (mergeErr: unknown) {
+    const message = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
+    logStore.log('debug', 'playwright', `profileCookies merge error: ${message}`);
   }
 
   const context = await defaultBrowser.newContext({
@@ -328,8 +330,9 @@ async function createContextInternal(email: string, cookies?: Record<string, str
         await page.waitForTimeout(2000);
       }
     }
-  } catch (navErr: any) {
-    logStore.log('debug', 'playwright', `Initial navigation to qwen.ai failed: ${navErr.message}`);
+  } catch (navErr: unknown) {
+    const message = navErr instanceof Error ? navErr.message : String(navErr);
+    logStore.log('debug', 'playwright', `Initial navigation to qwen.ai failed: ${message}`);
   }
 
   const accCtx: AccountContext = { context, page, lastRefresh: Date.now(), cookies: cookies || {}, headers: extractedHeaders };

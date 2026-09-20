@@ -48,8 +48,9 @@ export function migrateFromOldPaths(): void {
     logStore.log('info', 'auth', 'Migrated accounts.json from qwen_profile/ to .qwen/');
     logStore.log('info', 'auth', 'Note: old token files are ignored — tokens are now read from browser profiles.');
     logStore.log('info', 'auth', 'Migration complete. Old files preserved.');
-  } catch (err: any) {
-    logStore.log('error', 'auth', `Migration error: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logStore.log('error', 'auth', `Migration error: ${message}`);
   }
 }
 
@@ -219,8 +220,9 @@ export function loadAccountsFromFile(): Array<{ email: string; password: string;
           throttledUntil: d.throttledUntil,
           disabled: d.disabled ?? false,
         }));
-    } catch (err: any) {
-      logStore.log('error', 'auth', `Failed to load ${filePath}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logStore.log('error', 'auth', `Failed to load ${filePath}: ${message}`);
       return null;
     }
   };
@@ -299,8 +301,9 @@ export async function removeAccount(email: string): Promise<void> {
   if (existsSync(profileDir)) {
     try {
       rmSync(profileDir, { recursive: true, force: true });
-    } catch (err: any) {
-      logStore.log('error', 'auth', `Failed to delete Chromium profile for ${normalizedEmail}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logStore.log('error', 'auth', `Failed to delete Chromium profile for ${normalizedEmail}: ${message}`);
     }
   }
 }
@@ -398,8 +401,9 @@ export function setupAccountWatcher(): void {
     setTimeout(() => {
       watcherReady = true;
     }, 2000);
-  } catch (err: any) {
-    logStore.log('error', 'auth', `Failed to set up account watcher: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logStore.log('error', 'auth', `Failed to set up account watcher: ${message}`);
   }
 }
 /**
@@ -478,7 +482,7 @@ export async function pickAccount(excludeEmail?: string): Promise<AccountEntry |
     // Safety valve: reset if counter drifts unreasonably high
     if (picked.inFlight > 20) picked.inFlight = 0;
     return picked;
-  } catch (err: any) {
+  } catch (err: unknown) {
     logStore.log('error', 'auth', 'pickAccount error:', err);
     return null;
   }

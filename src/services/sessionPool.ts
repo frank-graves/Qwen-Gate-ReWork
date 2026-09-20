@@ -75,13 +75,14 @@ export class SessionPool {
         this.activeCount++;
         logStore.log('info', 'pool', 'Session acquired' + (entry.accountEmail ? ': ' + entry.accountEmail.split('@')[0] : ''));
         return entry;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         lastErr = err;
         if (resolvedEmail) {
           decrementInFlight(resolvedEmail);
-          if (!email && /pending activation|Bad_Request|Chats\/new returned no id/i.test(err?.message || '')) {
+          if (!email && /pending activation|Bad_Request|Chats\/new returned no id/i.test(message)) {
             throttleAccount(resolvedEmail, 30 * 60 * 1000);
-            logStore.log('warn', 'pool', `Skipping account ${resolvedEmail}: ${err.message}`);
+            logStore.log('warn', 'pool', `Skipping account ${resolvedEmail}: ${message}`);
             continue;
           }
         }
@@ -160,11 +161,13 @@ export class SessionPool {
       if (!response.ok) {
         logStore.log('debug', 'pool', `[SessionPool] Delete returned ${response.status} for ${chatId.substring(0, 8)}...`);
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : 'unknown';
+      const message = err instanceof Error ? err.message : String(err);
+      if (name === 'AbortError') {
         logStore.log('debug', 'pool', `[SessionPool] Delete timeout for ${chatId.substring(0, 8)}...`);
       } else {
-        logStore.log('debug', 'pool', `[SessionPool] Delete failed for ${chatId.substring(0, 8)}...: ${err.message}`);
+        logStore.log('debug', 'pool', `[SessionPool] Delete failed for ${chatId.substring(0, 8)}...: ${message}`);
       }
     }
   }

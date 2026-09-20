@@ -211,8 +211,9 @@ export async function openBrowserProfile(email: string, password?: string, optio
       logStore.log('warn', 'browser', `context.close failed after timeout for ${email}`);
     }
     return 'error';
-  } catch (err: any) {
-    logStore.log('error', 'browser', `Error for ${email}: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logStore.log('error', 'browser', `Error for ${email}: ${message}`);
     if (context) {
       try {
         await context.close();
@@ -267,8 +268,9 @@ export async function refreshViaProfile(email: string): Promise<boolean> {
       logStore.log('warn', 'browser', `context.close failed after navigation for ${email}`);
     }
     return false;
-  } catch (err: any) {
-    logStore.log('error', 'browser', `Profile refresh error for ${email}: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logStore.log('error', 'browser', `Profile refresh error for ${email}: ${message}`);
     if (context) {
       try {
         await context.close();

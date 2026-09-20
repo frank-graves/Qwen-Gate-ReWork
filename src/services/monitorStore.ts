@@ -336,8 +336,9 @@ class MonitorStore {
       const dir = projectPath('.qwen');
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       writeFileSync(this.storePath, JSON.stringify(this.entries), 'utf-8');
-    } catch (err: any) {
-      console.error('[MonitorStore] Failed to save:', err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[MonitorStore] Failed to save:', message);
     }
   }
 }

@@ -66,9 +66,10 @@ export async function setCustomInstruction(instruction: string): Promise<void> {
           successCount++;
         }
         completeEntry(settingsDebugId);
-      } catch (err: any) {
-        if (settingsDebugId) errorEntry(settingsDebugId, err.message);
-        console.error(`[Qwen] Error setting custom instruction for ${email}: ${err.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (settingsDebugId) errorEntry(settingsDebugId, message);
+        console.error(`[Qwen] Error setting custom instruction for ${email}: ${message}`);
       }
     }
     customInstructionApplied = successCount > 0;
@@ -120,9 +121,10 @@ export async function configureAccount(email: string, instruction?: string): Pro
       console.error(`[Qwen] Failed to configure ${email}: ${response.status} - ${text}`);
     }
     completeEntry(settingsDebugId);
-  } catch (err: any) {
-    if (settingsDebugId) errorEntry(settingsDebugId, err.message);
-    console.error(`[Qwen] Error configuring ${email}: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (settingsDebugId) errorEntry(settingsDebugId, message);
+    console.error(`[Qwen] Error configuring ${email}: ${message}`);
   }
 }
 
@@ -153,8 +155,9 @@ export async function deleteAllChats(email: string): Promise<void> {
       throw new Error(`Delete chats failed for ${email}: ${response.status} - ${errText}`);
     }
     return;
-  } catch (err: any) {
-    console.error(`[Qwen] Error deleting chats for ${email}: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[Qwen] Error deleting chats for ${email}: ${message}`);
     throw err;
   }
 }
@@ -212,8 +215,8 @@ export async function fetchQwenModels(): Promise<any[]> {
       cachedModels = models;
       lastModelsFetch = now;
       return models;
-    } catch (err: any) {
-      lastErr = err;
+    } catch (err: unknown) {
+      lastErr = err instanceof Error ? err : null;
     }
   }
 
