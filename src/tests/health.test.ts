@@ -20,12 +20,11 @@ afterEach(() => {
   resetAuthPhase();
 });
 
-function makeHealthRequest(): Promise<{ status: number; body: Record<string, unknown> }> {
+async function makeHealthRequest(): Promise<{ status: number; body: Record<string, unknown> }> {
   const req = new Request('http://localhost/health');
-  return app.fetch(req).then(async (res) => ({
-    status: res.status,
-    body: await res.json(),
-  }));
+  const res = await app.fetch(req);
+  const body = (await res.json()) as Record<string, unknown>;
+  return { status: res.status, body };
 }
 
 test('Health returns starting when auth_phase is idle', async () => {

@@ -11,15 +11,16 @@ import { accounts } from '../services/accountManager.ts';
 const TEST_API_KEY = 'test-key-for-testing';
 const authHeaders = { Authorization: `Bearer ${TEST_API_KEY}` };
 
-test('Health check returns degraded when Playwright not initialized', async () => {
+test('Health check returns starting when auth has not initialized', async () => {
   const req = new Request('http://localhost/health');
   const res = await app.fetch(req);
 
   assert.strictEqual(res.status, 200);
 
   const body = await res.json();
-  assert.strictEqual(body.status, 'degraded');
-  assert.ok(typeof body.uptime === 'number');
+  assert.strictEqual(body.status, 'starting');
+  assert.strictEqual(body.auth_phase, 'idle');
+  assert.ok(typeof body.uptime_seconds === 'number');
 });
 
 test('Models endpoint returns cleaned OpenAI-compatible model data', async () => {
