@@ -13,7 +13,7 @@ export interface SystemLogEntry {
   level: LogLevel;
   category: string;
   message: string;
-  metadata?: Record<string, unknown>;
+  metadata?: unknown;
 }
 export interface SystemLogFilter {
   minLevel?: LogLevel;
@@ -29,7 +29,7 @@ export class SystemLogger {
   protected systemListeners: Set<(entry: SystemLogEntry) => void> = new Set();
   protected systemIdCounter = 0;
 
-  log(level: LogLevel, category: string, message: string, metadata?: Record<string, unknown>): void {
+  log(level: LogLevel, category: string, message: string, metadata?: unknown): void {
     const entry: SystemLogEntry = {
       id: `sys-${++this.systemIdCounter}`,
       timestamp: new Date().toISOString(),
@@ -53,16 +53,16 @@ export class SystemLogger {
       process.stdout.write(JSON.stringify({ ...entry, logger: 'qwen-gate' }) + '\n');
     }
   }
-  debug(category: string, message: string, metadata?: Record<string, unknown>): void {
+  debug(category: string, message: string, metadata?: unknown): void {
     this.log('debug', category, message, metadata);
   }
-  info(category: string, message: string, metadata?: Record<string, unknown>): void {
+  info(category: string, message: string, metadata?: unknown): void {
     this.log('info', category, message, metadata);
   }
-  warn(category: string, message: string, metadata?: Record<string, unknown>): void {
+  warn(category: string, message: string, metadata?: unknown): void {
     this.log('warn', category, message, metadata);
   }
-  error(category: string, message: string, metadata?: Record<string, unknown>): void {
+  error(category: string, message: string, metadata?: unknown): void {
     this.log('error', category, message, metadata);
   }
   getSystemLogs(filter?: SystemLogFilter): SystemLogEntry[] {
@@ -95,7 +95,7 @@ export function __registerLogStore(store: RequestLogStore): void {
   _logStore = store;
 }
 
-/** Proxy-based lazy singleton — delegates to the real RequestLogStore once registered */
+/** Proxy-based lazy singleton â€” delegates to the real RequestLogStore once registered */
 export const logStore: RequestLogStore = new Proxy({} as RequestLogStore, {
   get(_, prop) {
     if (!_logStore) throw new Error('logStore accessed before initialization');

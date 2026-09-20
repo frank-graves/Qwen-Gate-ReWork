@@ -42,7 +42,7 @@ export async function tryRefreshToken(acct: AccountEntry): Promise<boolean> {
       acct.throttledUntil = 0;
     }
     return true;
-  } catch (err: any) {
+  } catch (err: unknown) {
     logStore.log('error', 'auth', 'HTTP fetch failed:', err);
     return false;
   }
@@ -65,7 +65,7 @@ export async function ensureAccountFresh(acct: AccountEntry): Promise<boolean> {
 
       if (acct.throttledUntil > Date.now()) {
         const waitSec = Math.ceil((acct.throttledUntil - Date.now()) / 1000);
-        logStore.log('warn', 'auth', `Skipping re-login for ${acct.email} — throttled for ${waitSec}s more`);
+        logStore.log('warn', 'auth', `Skipping re-login for ${acct.email} â€” throttled for ${waitSec}s more`);
         return false;
       }
 
