@@ -321,7 +321,7 @@ export async function createQwenStreamWithRetry(
     );
     modelRouter.recordSuccess(routedModel);
     return { stream: result.stream, abortController: result.abortController, qwenLogFile: result.qwenLogFile };
-  } catch (err: any) {
+  } catch (err: unknown) {
     modelRouter.recordError(routedModel);
     // ponytail: caller (chat.ts) handles session release — don't double-release
     throw err;

@@ -55,11 +55,12 @@ accountsRouter.post('/', async (c) => {
       { success: true, email: email.toLowerCase().trim(), loginSucceeded: result.loginSucceeded, loginError: result.loginError },
       201,
     );
-  } catch (err: any) {
-    if (err.message.includes('already exists')) {
-      return c.json({ error: { message: err.message } }, 409);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('already exists')) {
+      return c.json({ error: { message } }, 409);
     }
-    console.error('[Accounts] POST failed:', err.message);
+    console.error('[Accounts] POST failed:', message);
     return c.json({ error: { message: 'Failed to add account' } }, 500);
   }
 });
@@ -79,11 +80,12 @@ accountsRouter.patch('/:email', async (c) => {
       setAccountDisabled(email, body.disabled);
     }
     return c.json({ success: true, email, disabled: body.disabled });
-  } catch (err: any) {
-    if (err.message.includes('not found')) {
-      return c.json({ error: { message: err.message } }, 404);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('not found')) {
+      return c.json({ error: { message } }, 404);
     }
-    console.error('[Accounts] PATCH failed:', err.message);
+    console.error('[Accounts] PATCH failed:', message);
     return c.json({ error: { message: 'Failed to update account' } }, 500);
   }
 });
@@ -100,11 +102,12 @@ accountsRouter.delete('/:email', async (c) => {
     const email = decodeURIComponent(c.req.param('email'));
     await removeAccount(email);
     return c.json({ success: true, email });
-  } catch (err: any) {
-    if (err.message.includes('not found')) {
-      return c.json({ error: { message: err.message } }, 404);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('not found')) {
+      return c.json({ error: { message } }, 404);
     }
-    console.error('[Accounts] DELETE failed:', err.message);
+    console.error('[Accounts] DELETE failed:', message);
     return c.json({ error: { message: 'Failed to remove account' } }, 500);
   }
 });
@@ -144,8 +147,9 @@ accountsRouter.get('/:email/login', async (c) => {
     } else {
       return c.json({ error: { message: 'Login failed — check credentials' } }, 500);
     }
-  } catch (err: any) {
-    console.error('[Accounts] LOGIN failed:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Accounts] LOGIN failed:', message);
     return c.json({ error: { message: 'Login failed' } }, 500);
   }
 });
@@ -166,14 +170,16 @@ accountsRouter.get('/:email/autofill', async (c) => {
           const profileState = await loadCookiesFromProfile(account.email);
           if (profileState) account.state = profileState;
         }
-      } catch (err: any) {
-        logStore.log('error', 'auth', err.message || String(err));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        logStore.log('error', 'auth', message || String(err));
       }
     })();
 
     return c.json({ success: true, email: account.email, message: 'Browser opened. Complete login manually.' });
-  } catch (err: any) {
-    console.error('[Accounts] AUTOFILL failed:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Accounts] AUTOFILL failed:', message);
     return c.json({ error: { message: 'Auto-fill login failed' } }, 500);
   }
 });

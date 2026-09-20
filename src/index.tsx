@@ -239,8 +239,9 @@ app.post(
       const response = await anthropicMessages(c);
       logStore.log('info', 'http', `[Anthropic] /v1/messages EXIT duration=${Date.now() - startMs}ms`);
       return response;
-    } catch (err: any) {
-      logStore.log('error', 'http', `[Anthropic] /v1/messages UNCAUGHT after ${Date.now() - startMs}ms: ${err.message || err}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logStore.log('error', 'http', `[Anthropic] /v1/messages UNCAUGHT after ${Date.now() - startMs}ms: ${message || err}`);
       throw err;
     }
   },
@@ -273,8 +274,9 @@ app.get(
         capabilities: m.capabilities || {},
       }));
       return c.json({ object: 'list', data });
-    } catch (err: any) {
-      return c.json({ error: { message: err.message } }, 500);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return c.json({ error: { message } }, 500);
     }
   },
 );
@@ -471,9 +473,10 @@ if (import.meta.main) {
         for (const acct of getAccounts()) {
           setStartupStatus(acct.email, 'pending');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         setAuthPhase('failed');
-        logStore.log('warn', 'boot', `[1/5] initAuth failed: ${err.message}`);
+        logStore.log('warn', 'boot', `[1/5] initAuth failed: ${message}`);
       }
 
       // ── Phase 2b: Configure loaded accounts ──
@@ -486,14 +489,16 @@ if (import.meta.main) {
             await configureAccount(acct.email);
             setStartupStatus(acct.email, 'ready');
             logStore.log('info', 'boot', `[2/5] Account configured: ${acct.email}`);
-          } catch (err: any) {
-            logStore.log('warn', 'boot', `[2/5] Account config failed for ${acct.email}: ${err.message}`);
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            logStore.log('warn', 'boot', `[2/5] Account config failed for ${acct.email}: ${message}`);
             setStartupStatus(acct.email, 'ready'); // still usable, just might have old prompt
           }
         }
         logStore.log('info', 'boot', `[2/5] Accounts configured: ${acctList.length} ready`);
-      } catch (err: any) {
-        logStore.log('warn', 'boot', `[2/5] Configure failed: ${err.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        logStore.log('warn', 'boot', `[2/5] Configure failed: ${message}`);
       }
 
       logStore.log('info', 'boot', '[3/5] Headers ready (browserless — no pre-warm needed)');

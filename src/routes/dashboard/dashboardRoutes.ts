@@ -57,9 +57,10 @@ async function accountsReloadHandler(c: any) {
     });
     logStore.log('info', 'auth', 'Accounts reloaded');
     return c.json({ ok: true });
-  } catch (err: any) {
-    logStore.log('error', 'auth', `Reload failed: ${err.message}`);
-    return c.json({ error: err.message }, 500);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logStore.log('error', 'auth', `Reload failed: ${message}`);
+    return c.json({ error: message }, 500);
   }
 }
 
@@ -84,11 +85,12 @@ async function deleteAllChatsHandler(c: any) {
           await deleteAllChats(email);
           deleted++;
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'progress', email: maskEmail(email), status: 'done' })}\n\n`));
-        } catch (err: any) {
-          errors.push(`${maskEmail(email)}: ${err.message}`);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          errors.push(`${maskEmail(email)}: ${message}`);
           controller.enqueue(
             encoder.encode(
-              `data: ${JSON.stringify({ type: 'progress', email: maskEmail(email), status: 'error', error: err.message })}\n\n`,
+              `data: ${JSON.stringify({ type: 'progress', email: maskEmail(email), status: 'error', error: message })}\n\n`,
             ),
           );
         }
@@ -166,8 +168,9 @@ function modelHealthHandler(c: any) {
 function monitorHandler(c: any) {
   try {
     return c.json(monitorStore.getSummary());
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json({ error: message }, 500);
   }
 }
 
@@ -340,8 +343,9 @@ export function registerDashboardRoutes(app: Hono): void {
         const { setAccountDisabled } = await import('../../services/accountManager.ts');
         setAccountDisabled(c.req.param('email'), body.disabled === true);
         return c.json({ ok: true });
-      } catch (err: any) {
-        return c.json({ error: err.message }, 404);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return c.json({ error: message }, 404);
       }
     },
   );

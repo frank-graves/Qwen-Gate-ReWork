@@ -362,8 +362,9 @@ async function setupAnthropicSession(
         const batch = imageUrls.slice(i, i + MAX_CONCURRENT);
         const results = await Promise.all(
           batch.map((url) =>
-            uploadImageAsFile(accountEmail, url).catch((err: any) => {
-              logStore.log('warn', 'chat', `[Anthropic] Image upload failed: ${err.message}`);
+            uploadImageAsFile(accountEmail, url).catch((err: unknown) => {
+              const message = err instanceof Error ? err.message : String(err);
+              logStore.log('warn', 'chat', `[Anthropic] Image upload failed: ${message}`);
               return null;
             }),
           ),
@@ -383,12 +384,13 @@ async function setupAnthropicSession(
       try {
         const file = await uploadLargeTextAsFile(accountEmail, parts.join('\n\n'), 'context.txt');
         processedMessages[0] = { ...processedMessages[0], files: [file] };
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         // NEVER fall back to sending the payload inline: Qwen bot-detects
         // oversized user messages and the request hangs/spins. Retry on the
         // next account (upload failure is per-account); if all exhaust, the
         // loop throws a real error instead of silently sending inline.
-        logStore.log('error', 'chat', `[Anthropic] Context file upload failed for ${accountEmail}: ${err.message || err}`);
+        logStore.log('error', 'chat', `[Anthropic] Context file upload failed for ${accountEmail}: ${message || err}`);
         lastFailedEmail = accountEmail;
         lastError = err;
         continue;
@@ -611,8 +613,9 @@ async function handleAnthropicStream(
               );
             }),
           ]);
-        } catch (streamErr: any) {
-          logStore.log('warn', 'chat', `[Anthropic] ${streamErr.message || 'Stream read error'} (logId=${logId})`);
+        } catch (streamErr: unknown) {
+          const message = streamErr instanceof Error ? streamErr.message : String(streamErr);
+          logStore.log('warn', 'chat', `[Anthropic] ${message || 'Stream read error'} (logId=${logId})`);
           break;
         } finally {
           if (idleTimer) clearTimeout(idleTimer);
@@ -977,8 +980,9 @@ async function handleAnthropicStream(
         finishReason: stopReason,
       });
       sessionPool.release(session.chatId, nextParentId, sessionHeaders, resolvedEmail);
-    } catch (streamErr: any) {
-      logStore.addError(logId, streamErr.message || String(streamErr));
+    } catch (streamErr: unknown) {
+      const message = streamErr instanceof Error ? streamErr.message : String(streamErr);
+      logStore.addError(logId, message || String(streamErr));
     } finally {
       clearInterval(pingInterval);
       if (!streamReleased) {
