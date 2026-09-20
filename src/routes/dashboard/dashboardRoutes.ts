@@ -291,7 +291,7 @@ export function registerDashboardRoutes(app: Hono): void {
   app.get('/dashboard/static/:file', dashboardStaticHandler);
 
   app.get('/', (c) => c.redirect('/dashboard'));
-    app.get(
+  app.get(
     '/accounts',
     async (c, next) => requireApiKey(c, next),
     (c) => {
