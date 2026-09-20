@@ -181,8 +181,9 @@ export async function initAuth(onAccountReady?: (email: string) => Promise<void>
         .map(async (acct) => {
           try {
             await onAccountReady(acct.email);
-          } catch (err: any) {
-            logStore.log('warn', 'auth', `Post-login config failed for ${acct.email}: ${err.message}`);
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            logStore.log('warn', 'auth', `Post-login config failed for ${acct.email}: ${message}`);
           }
         });
       await Promise.allSettled(readyPromises);
@@ -300,8 +301,9 @@ export async function loadCookiesFromProfile(email: string): Promise<AuthState |
           saveAccountsToFile(accounts);
           logStore.log('info', 'auth', `Saved ${cookies.length} cookies as profile for ${email.split('@')[0]}`);
         }
-      } catch (fileErr: any) {
-        logStore.log('debug', 'auth', `Profile cookie save failed: ${fileErr.message}`);
+      } catch (fileErr: unknown) {
+        const message = fileErr instanceof Error ? fileErr.message : String(fileErr);
+        logStore.log('debug', 'auth', `Profile cookie save failed: ${message}`);
       }
 
       if (authCookie?.value) {
@@ -334,11 +336,12 @@ export async function loadCookiesFromProfile(email: string): Promise<AuthState |
         }
       }
     }
-  } catch (err: any) {
-    if (err?.message?.toLowerCase().includes('lock')) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.toLowerCase().includes('lock')) {
       logStore.log('warn', 'auth', `Profile lock error for ${email}`);
     } else {
-      logStore.log('warn', 'auth', `Profile cookie load failed for ${email}: ${err.message}`);
+      logStore.log('warn', 'auth', `Profile cookie load failed for ${email}: ${message}`);
     }
     // Ensure context is cleaned up if timeout or error occurred before inner finally
     if (context) {
@@ -378,8 +381,9 @@ export async function saveCookies(email: string, token: string, refreshToken?: s
 
       // Token lives in browser profile's Default/Cookies SQLite — no separate file needed
     }
-  } catch (err: any) {
-    logStore.log('error', 'auth', `Failed to save cookies for ${normalizedEmail}: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logStore.log('error', 'auth', `Failed to save cookies for ${normalizedEmail}: ${message}`);
   }
 }
 
